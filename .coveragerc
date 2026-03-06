@@ -1,10 +1,29 @@
 [run]
-source = .
+branch = True
+source =
+    .
 omit =
-    adminlteui_custom/*
-    manage.py
-    wsgi.py
-    lab_*
     */migrations/*
+    */venv/*
+    */.venv/*
+    webservices/tests/test_connector.py
+    webservices/tests/test_empenhospropostas.py
     */tests/*
-    */templatetags/*
+    adminlteui__/*
+    session__disabled/*
+    update_database/*
+    manage.py
+    lab_*
+    apps/lab/*
+    conversor/*
+    apps/ia/*
+    refactoring.py
+    request_api_eventos_example.py
+    backup_all.py
+    services/xml_to_dict_parser/*
+
+[report]
+show_missing = True
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:

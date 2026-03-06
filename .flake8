@@ -1,5 +1,11 @@
 [flake8]
 max-line-length = 100
 exclude =
-    apps/esocial/migrations/*,
-    apps/users/migrations/*
+    */reinf/*,
+    */ia/*,
+    */parsing/*,
+    */commands/*,
+    */migrations/*,
+    venv/*,
+    lab_*,
+    lib

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+import sys
 
 import environ  # type: ignore
 from django.utils.log import DEFAULT_LOGGING as LOGGING
@@ -97,6 +98,13 @@ DATABASES = {
     # read os.environ['DATABASE_URL'] and raises ImproperlyConfigured exception if not found
     'default': env.db(default='psql://postgres:postgres@localhost:5432/emensageria'),
 }
+
+# Usa banco em memória somente ao executar testes unitários via `manage.py test`.
+if len(sys.argv) > 1 and sys.argv[1] == 'test':
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/2.2/ref/settings/#auth-password-validators

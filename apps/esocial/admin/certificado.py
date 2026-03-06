@@ -1,4 +1,4 @@
-from django.contrib import admin, messages
+from django.contrib import admin
 
 from apps.esocial.forms.certificado import CertificadosForm
 from apps.esocial.models import Certificados
