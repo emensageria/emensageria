@@ -1,6 +1,7 @@
 from typing import Any, Dict
 
 from django.contrib import admin, messages
+from django.http import HttpResponseRedirect
 from django.utils.safestring import mark_safe
 
 from apps.esocial.choices import STATUS_EVENTO_CADASTRADO, STATUS_EVENTO_ERRO, \
@@ -9,6 +10,8 @@ from apps.esocial.forms.evento import EventosForm
 from apps.esocial.models import Eventos
 from apps.users.models import User
 from config.mixins import AuditoriaAdminEventos
+
+EVENTOS_RECIBO_ROUTE = 'esocial:eventos_recibo'
 
 
 def set_nested_value(
@@ -92,7 +95,7 @@ class EventosAdmin(AuditoriaAdminEventos):
 
         elif obj.status in (STATUS_EVENTO_ERRO, STATUS_EVENTO_ERRO):
             url = reverse('admin:esocial_eventos_change', kwargs={'object_id': obj.pk})
-            url_recibo = reverse('esocial:eventos_recibo', kwargs={'pk': obj.pk})
+            url_recibo = reverse(EVENTOS_RECIBO_ROUTE, kwargs={'pk': obj.pk})
             return mark_safe(
                 "<a href='{}' class='btn btn-danger form-control'>"
                 "<i class='fa fa-minus-square-o'></i>&nbsp;Corrigir</a>"
@@ -105,18 +108,9 @@ class EventosAdmin(AuditoriaAdminEventos):
                 "<a href='{}' class='btn btn-primary form-control'>"
                 "<i class='fa fa-send-o'></i>&nbsp;Enviar</a>".format(url))
 
-        elif obj.status == STATUS_EVENTO_ENVIADO:
+        elif obj.status in (STATUS_EVENTO_ENVIADO, STATUS_EVENTO_PROCESSADO):
             url = reverse('esocial:consultar_evento', kwargs={'pk': obj.pk})
-            url_recibo = reverse('esocial:eventos_recibo', kwargs={'pk': obj.pk})
-            return mark_safe(
-                "<a href='{}' class='btn btn-primary form-control'>"
-                "<i class='fa fa-search'></i>&nbsp;Consultar</a>"
-                "<a href='{}' class='btn btn-print form-control'>"
-                "<i class='fa fa-print'></i>&nbsp;Recibo</a>".format(url, url_recibo))
-
-        elif obj.status == STATUS_EVENTO_PROCESSADO:
-            url = reverse('esocial:consultar_evento', kwargs={'pk': obj.pk})
-            url_recibo = reverse('esocial:eventos_recibo', kwargs={'pk': obj.pk})
+            url_recibo = reverse(EVENTOS_RECIBO_ROUTE, kwargs={'pk': obj.pk})
             return mark_safe(
                 "<a href='{}' class='btn btn-primary form-control'>"
                 "<i class='fa fa-search'></i>&nbsp;Consultar</a>"
@@ -259,64 +253,79 @@ class EventosAdmin(AuditoriaAdminEventos):
             obj=None):
         return False
 
+    @staticmethod
+    def _redirect_to_current_page():
+        return HttpResponseRedirect(".")
+
+    def _handle_identity_update(self, request, obj):
+        obj.identidade = obj.make_identidade(request=request)
+        obj.save()
+        self.message_user(request, "Identidade atualizada com sucesso %s" % obj.identidade)
+        return self._redirect_to_current_page()
+
+    def _handle_duplicate_event(self, request, obj):
+        retorno = obj.duplicar_evento(request=request)
+        self.message_user(request, "Novo evento criado com sucesso! %s" % retorno.identidade)
+        return self._redirect_to_current_page()
+
+    def _handle_delete_event(self, request, obj):
+        if obj.status in (STATUS_EVENTO_CADASTRADO, STATUS_EVENTO_ERRO):
+            obj.delete()
+            return self._redirect_to_current_page()
+        messages.add_message(
+            request,
+            messages.ERROR,
+            'Não é possível apagar o evento %s, pois o mesmo está com status %s!' % (
+                obj.identidade, obj.get_status_display()))
+        return None
+
+    def _show_action_message(self, request, retorno):
+        if retorno['retorno'] == 'error':
+            messages.error(request, retorno['mensagem'])
+        elif retorno['retorno'] == 'warning':
+            messages.warning(request, retorno['mensagem'])
+        else:
+            self.message_user(request, retorno['mensagem'])
+
+    def _handle_send_event(self, request, obj):
+        retorno = obj.enviar(request=request)
+        self._show_action_message(request, retorno)
+        return self._redirect_to_current_page()
+
+    def _handle_consult_event(self, request, obj):
+        retorno = obj.lote.consultar(request=request)
+        self._show_action_message(request, retorno)
+        return self._redirect_to_current_page()
+
+    def _handle_open_for_edit(self, request, obj):
+        obj.abrir_evento_para_edicao(request=request)
+        return self._redirect_to_current_page()
+
+    def _handle_validate_event(self, request, obj):
+        if not obj.lote:
+            obj.vincular_transmissor(request=request)
+        obj.validar(request=request)
+        return self._redirect_to_current_page()
+
     def response_change(
             self,
             request,
             obj):
-        from django.http import HttpResponseRedirect
-        from django.contrib import messages
-
-        if "_atualizar_identidade" in request.POST:
-            obj.identidade = obj.make_identidade(request=request)
-            obj.save()
-            self.message_user(request, "Identidade atualizada com sucesso %s" % obj.identidade)
-            return HttpResponseRedirect(".")
-
-        elif "_duplicar_evento" in request.POST:
-            retorno = obj.duplicar_evento(request=request)
-            self.message_user(request, "Novo evento criado com sucesso! %s" % retorno.identidade)
-            return HttpResponseRedirect(".")
-
-        elif "_apagar" in request.POST:
-            if obj.status in (STATUS_EVENTO_CADASTRADO, STATUS_EVENTO_ERRO):
-                obj.delete()
-                return HttpResponseRedirect(".")
-            else:
-                messages.add_message(
-                    request,
-                    messages.ERROR,
-                    'Não é possível apagar o evento %s, pois o mesmo está com status %s!' % (
-                        obj.identidade, obj.get_status_display()))
-
-        elif "_enviar" in request.POST:
-            retorno = obj.enviar(request=request)
-            if retorno['retorno'] == 'error':
-                messages.error(request, retorno['mensagem'])
-            elif retorno['retorno'] == 'warning':
-                messages.warning(request, retorno['mensagem'])
-            else:
-                self.message_user(request, retorno['mensagem'])
-            return HttpResponseRedirect(".")
-
-        elif "_consultar" in request.POST:
-            retorno = obj.lote.consultar(request=request)
-            if retorno['retorno'] == 'error':
-                messages.error(request, retorno['mensagem'])
-            elif retorno['retorno'] == 'warning':
-                messages.warning(request, retorno['mensagem'])
-            else:
-                self.message_user(request, retorno['mensagem'])
-            return HttpResponseRedirect(".")
-
-        elif "_abrir_evento_para_edicao" in request.POST:
-            obj.abrir_evento_para_edicao(request=request)
-            return HttpResponseRedirect(".")
-
-        elif "_validar" in request.POST:
-            if not obj.lote:
-                obj.vincular_transmissor(request=request)
-            obj.validar(request=request)
-            return HttpResponseRedirect(".")
+        handlers = (
+            ("_atualizar_identidade", self._handle_identity_update),
+            ("_duplicar_evento", self._handle_duplicate_event),
+            ("_apagar", self._handle_delete_event),
+            ("_enviar", self._handle_send_event),
+            ("_consultar", self._handle_consult_event),
+            ("_abrir_evento_para_edicao", self._handle_open_for_edit),
+            ("_validar", self._handle_validate_event),
+        )
+        for action, handler in handlers:
+            if action in request.POST:
+                response = handler(request, obj)
+                if response is not None:
+                    return response
+                break
 
         return super().response_change(request, obj)
 

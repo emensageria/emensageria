@@ -12,6 +12,7 @@ from config import settings
 
 
 def admin_media(request):
+    del request
     return {
         'hoje': datetime.datetime.today(),
         'DEBUG': settings.DEBUG,

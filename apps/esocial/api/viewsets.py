@@ -26,12 +26,12 @@ class EventosViewSet(ModelViewSet):
 
     def get_queryset(
             self):
-        filter: Dict[str, Any] = {}
+        filters: Dict[str, Any] = {}
         if self.request.query_params.get('user_id'):
-            filter['created_by_id'] = self.request.query_params.get('user_id')
+            filters['created_by_id'] = self.request.query_params.get('user_id')
         if self.request.query_params.get('identidade'):
-            filter['identidade'] = self.request.query_params.get('identidade')
-        return Eventos.objects.filter(**filter).all()
+            filters['identidade'] = self.request.query_params.get('identidade')
+        return Eventos.objects.filter(**filters).all()
 
     @action(detail=True, methods=['get'], url_path='atualizar-identidade')
     def atualizar_identidade(

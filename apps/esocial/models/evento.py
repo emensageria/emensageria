@@ -79,7 +79,7 @@ class Eventos(BaseModelEsocial):
         choices=CHOICES_PROCEMI, default=settings.ESOCIAL_PROCEMI, )
     verproc = models.CharField(
         'Versão do processo',
-        max_length=20, null=True, default=settings.VERSAO_EMENSAGERIA, )
+        max_length=20, blank=True, default=settings.VERSAO_EMENSAGERIA, )
     certificado = models.ForeignKey(
         'Certificados',
         on_delete=models.PROTECT,
@@ -101,10 +101,10 @@ class Eventos(BaseModelEsocial):
         choices=SIM_NAO, blank=True, null=True, )
 
     validacoes = models.TextField(
-        'Validações', blank=True, null=True, )
+        'Validações', blank=True, )
 
     arquivo = models.CharField(
-        'Arquivo', max_length=200, blank=True, null=True, )
+        'Arquivo', max_length=200, blank=True, )
 
     retorno_envio_json = models.JSONField(
         'Retorno do envio', null=True, default=dict, blank=True)
@@ -115,7 +115,7 @@ class Eventos(BaseModelEsocial):
     retorno_consulta_lote_json = models.JSONField(
         'Retorno do lote da consulta', null=True, default=dict, blank=True)
     evento_json = models.JSONField("JSON", null=True, default=dict, blank=True)
-    evento_xml = models.TextField("XML", null=True, blank=True)
+    evento_xml = models.TextField("XML", blank=True)
     ocorrencias_json = models.JSONField("Ocorrências", default=dict, null=True, blank=True)
     origem = models.IntegerField(
         'Origem do evento',
@@ -185,7 +185,7 @@ class Eventos(BaseModelEsocial):
         replacement = rf'\1{new_id}\2'
 
         # faz somente uma substituição
-        new_xml, count = re.subn(pattern, replacement, xml_str, count=1)
+        new_xml, _ = re.subn(pattern, replacement, xml_str, count=1)
         return new_xml
 
     def make_identidade(
@@ -235,47 +235,71 @@ class Eventos(BaseModelEsocial):
             settings.MEDIA_ROOT,
             'eventos', 'esocial', '{}.xml'.format(self.identidade))
 
+    def _get_transmissor(
+            self):
+        from apps.esocial.models import Transmissor
+
+        transmissores = Transmissor.objects.filter(nrinsc=self.nrinsc).all()
+        if transmissores:
+            return transmissores[0]
+        return None
+
+    def _get_lote_aguardando(
+            self,
+            transmissor):
+        from apps.esocial.models import Lotes
+
+        lotes = Lotes.objects.filter(
+            empregador_tpinsc=transmissor.tpinsc,
+            empregador_nrinsc=transmissor.nrinsc,
+            grupo=self.get_grupo_esocial(),
+            status=STATUS_TRANSMISSOR_AGUARDANDO,
+        ).all()[:50]
+        for lote in lotes:
+            eventos = Eventos.objects.filter(lote=lote).all()
+            if len(eventos) < settings.ESOCIAL_LOTE_MAX:
+                return lote
+        return None
+
+    def _criar_lote(
+            self,
+            transmissor):
+        from apps.esocial.models import Lotes
+
+        lote = Lotes(
+            transmissor=transmissor,
+            empregador_tpinsc=transmissor.tpinsc,
+            empregador_nrinsc=transmissor.nrinsc,
+            grupo=self.get_grupo_esocial(),
+            status=STATUS_TRANSMISSOR_CADASTRADO,
+        )
+        lote.save()
+        return lote
+
+    def _notify_transmissor_nao_encontrado(
+            self,
+            request):
+        if request:
+            messages.error(
+                request,
+                'Erro ao vincular evento. Não foi encontrado nenhum transmissor'
+                ' com o número de inscrição: %s!' % self.nrinsc)
+
     def vincular_transmissor(
             self,
             request=None):
-        from apps.esocial.models import Transmissor, Lotes
+        if self.lote:
+            return None
 
-        if not self.lote:
+        transmissor = self._get_transmissor()
+        if not transmissor:
+            self._notify_transmissor_nao_encontrado(request)
+            return None
 
-            transmissores = Transmissor.objects. \
-                filter(nrinsc=self.nrinsc).all()
-
-            if transmissores:
-                transmissor = transmissores[0]
-                tevt = Lotes.objects.filter(
-                    empregador_tpinsc=transmissor.tpinsc,
-                    empregador_nrinsc=transmissor.nrinsc,
-                    grupo=self.get_grupo_esocial(),
-                    status=STATUS_TRANSMISSOR_AGUARDANDO).all()[:50]
-                tra = None
-                for t in tevt:
-                    evts = Eventos.objects.filter(lote=t).all()
-                    if len(evts) < settings.ESOCIAL_LOTE_MAX:
-                        tra = t
-                if not tra:
-                    tevt_data = {
-                        'transmissor': transmissor,
-                        'empregador_tpinsc': transmissor.tpinsc,
-                        'empregador_nrinsc': transmissor.nrinsc,
-                        'grupo': self.get_grupo_esocial(),
-                        'status': STATUS_TRANSMISSOR_CADASTRADO,
-                    }
-                    tra = Lotes(**tevt_data)
-                    tra.save()
-                self.lote = tra
-                self.save()
-                return tra
-            else:
-                if request:
-                    messages.error(
-                        request,
-                        'Erro ao vincular evento. Não foi encontrado nenhum transmissor'
-                        ' com o número de inscrição: %s!' % self.nrinsc)
+        lote = self._get_lote_aguardando(transmissor) or self._criar_lote(transmissor)
+        self.lote = lote
+        self.save()
+        return lote
 
     def enviar(
             self,
@@ -311,6 +335,186 @@ class Eventos(BaseModelEsocial):
             self.certificado = self.lote.transmissor.certificado
             self.save()
 
+    def _persistir_evento_xml(
+            self,
+            evento_xml,
+            timestamp):
+        self.evento_xml = evento_xml
+        self.save()
+        Eventos.objects.filter(id=self.id).update(evento_xml=evento_xml)
+        save_file(self.xml_file(), evento_xml)
+        save_file(self.xml_file(timestamp), evento_xml)
+
+    def _xml_namespace(
+            self,
+            evento_codigo):
+        return f"http://www.esocial.gov.br/schema/evt/{evento_codigo}/{self.versao}"
+
+    def _find_event_element(
+            self,
+            xml_obj,
+            evt_tag):
+        elem = xml_obj.find(f'.//{evt_tag}')
+        if elem is None:
+            elem = xml_obj.find(f'.//{{*}}{evt_tag}')
+        if elem is None:
+            raise ValueError(f"Elemento <{evt_tag}> não encontrado no XML.")
+        return elem
+
+    @staticmethod
+    def _flatten_duplicate_tags(
+            et_module,
+            xml_str):
+        root = et_module.fromstring(xml_str)
+
+        def remove_redundant_containers(elem):
+            for child in elem:
+                remove_redundant_containers(child)
+
+            novos_filhos = []
+            for child in elem:
+                if len(child) > 0 and all(grandchild.tag == child.tag for grandchild in child):
+                    novos_filhos.extend(child)
+                else:
+                    novos_filhos.append(child)
+            elem[:] = novos_filhos
+
+        remove_redundant_containers(root)
+        return et_module.tostring(root, encoding='unicode')
+
+    @staticmethod
+    def _recursive_update_datefield(
+            elem2):
+        from dateutil import parser as dateutil_parser
+
+        for elem in elem2:
+            if elem.text and len(elem.text) == 10 and len(elem.text.split('/')) == 3:
+                data = dateutil_parser.parse(elem.text, dayfirst=True)
+                elem.text = data.strftime('%Y-%m-%d')
+            else:
+                Eventos._recursive_update_datefield(elem)
+
+    @staticmethod
+    def _recursive_remove_empty(
+            elem2):
+        for elem in tuple(elem2):
+            if len(elem) == 0 and (elem.text is None or not elem.text.strip()):
+                elem2.remove(elem)
+            else:
+                Eventos._recursive_remove_empty(elem)
+
+    @staticmethod
+    def _has_empty_tags(
+            xml_obj):
+        for elem in xml_obj.iter():
+            if len(elem) == 0 and (elem.text is None or not elem.text.strip()):
+                return True
+        return False
+
+    def _cleanup_xml_object(
+            self,
+            xml_obj):
+        while self._has_empty_tags(xml_obj):
+            for elem in tuple(xml_obj):
+                self._recursive_update_datefield(elem)
+                self._recursive_remove_empty(elem)
+
+    def _ensure_imported_xml_ready(
+            self,
+            et_module,
+            xml_str,
+            evento_codigo):
+        xml_changed = False
+        if '<eSocial' not in xml_str:
+            logger.info(f"Incluindo a tag eSocial no evento {self.id}.")
+            xml_str = '<eSocial>' + xml_str + '</eSocial>'
+            xml_changed = True
+
+        xml_obj = et_module.fromstring(xml_str)
+        if 'www.esocial.gov.br/schema/evt' not in xml_str:
+            logger.info(f"Incluindo o name space xmlns no evento {self.id}.")
+            et_module.register_namespace("", self._xml_namespace(evento_codigo))
+            xml_obj.set('xmlns', self._xml_namespace(evento_codigo))
+            xml_changed = True
+
+        if 'Id="ID' not in xml_str:
+            logger.info(f"Incluindo o ID no evento {self.id}.")
+            if not self.identidade:
+                self.make_identidade()
+            evt_tag = EVENTO_COD[self.evento]['codigo']
+            self._find_event_element(xml_obj, evt_tag).set('Id', self.identidade)
+            xml_changed = True
+
+        if xml_changed:
+            xml_str = et_module.tostring(xml_obj, encoding='utf-8').decode('utf-8')
+        return xml_str
+
+    def _create_xml_from_imported_xml(
+            self,
+            et_module,
+            timestamp,
+            evento_codigo,
+            request):
+        logger.info("XML criado a partir do campo evento_xml")
+        xml_str = self._ensure_imported_xml_ready(
+            et_module,
+            self.evento_xml,
+            evento_codigo,
+        )
+        self._persistir_evento_xml(xml_str, timestamp)
+        if 'Signature' not in self.evento_xml:
+            logger.info(f"Assinando o evento {self.id}.")
+            self.assinar(request)
+
+    def _create_xml_from_json(
+            self,
+            et_module,
+            dicttoxml,
+            timestamp,
+            evento_codigo,
+            request):
+        logger.info("XML criado a partir do campo evento_json")
+        xml = dicttoxml.dicttoxml(
+            self.evento_json,
+            attr_type=False,
+            custom_root='eSocial',
+            item_func=lambda x: x).decode()
+        xml = self._flatten_duplicate_tags(et_module, xml)
+
+        et_module.register_namespace("", self._xml_namespace(evento_codigo))
+        xml_obj = et_module.fromstring(xml)
+        xml_obj.set('xmlns', self._xml_namespace(evento_codigo))
+        self._cleanup_xml_object(xml_obj)
+        if self.identidade:
+            xml_obj.find(
+                EVENTO_COD[self.evento]['codigo']
+            ).set('Id', self.identidade)  # type: ignore
+
+        evento_xml = et_module.tostring(xml_obj).decode('utf-8')
+        self._persistir_evento_xml(evento_xml, timestamp)
+        self.assinar(request)
+
+    def _pode_criar_xml_importado(
+            self):
+        return (
+            self.evento_xml and
+            self.origem == EVENTO_ORIGEM_API and
+            self.status == STATUS_EVENTO_IMPORTADO
+        )
+
+    def _pode_criar_xml_de_json(
+            self):
+        importado_da_api = (
+            not self.evento_xml and
+            self.evento_json and
+            self.origem == EVENTO_ORIGEM_API and
+            self.status == STATUS_EVENTO_IMPORTADO
+        )
+        return importado_da_api or (
+            self.status == STATUS_EVENTO_CADASTRADO and
+            self.is_editable()
+        )
+
     def assinar(
             self,
             request=None):
@@ -338,7 +542,6 @@ class Eventos(BaseModelEsocial):
                     request,
                     'Erro ao vincular evento. Não foi encontrado nenhum'
                     ' transmissor com o número de inscrição: %s!' % self.nrinsc)
-            return
 
     def create_xml(
             self,
@@ -346,200 +549,67 @@ class Eventos(BaseModelEsocial):
         import xml.etree.ElementTree as ET
         import dicttoxml
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-
-        wrapper = 'eSocial'
         evento_codigo = EVENTO_COD[self.evento]['codigo']
+        if self._pode_criar_xml_importado():
+            self._create_xml_from_imported_xml(ET, timestamp, evento_codigo, request)
+        elif self._pode_criar_xml_de_json():
+            self._create_xml_from_json(ET, dicttoxml, timestamp, evento_codigo, request)
 
-        if (self.evento_xml and self.origem == EVENTO_ORIGEM_API
-                and self.status == STATUS_EVENTO_IMPORTADO):
-            logger.info("XML criado a partir do campo evento_xml")
-            # Ele deverá criar um XML através do campo evento_xml, se o evento
-            # for importado da API com o campo evento_xml preenchido
+    def _set_validation_state(
+            self,
+            ocorrencias,
+            status,
+            lote):
+        self.ocorrencias_json = ocorrencias
+        self.is_aberto = False
+        self.status = status
+        self.lote = lote
+        self.save()
 
-            xml_str = self.evento_xml
-            if '<eSocial' not in self.evento_xml:
-                logger.info(f"Incluindo a tag eSocial no evento {self.id}.")
-                xml_str = '<eSocial>' + self.evento_xml + '</eSocial>'
-                self.evento_xml = xml_str
-                self.save()
+    @staticmethod
+    def _notify_validation_result(
+            request,
+            level,
+            message):
+        if request:
+            getattr(messages, level)(request, message)
 
-            xml_obj = ET.fromstring(xml_str)
-            xml_changed = False
-
-            if 'www.esocial.gov.br/schema/evt' not in xml_str:
-                xml_changed = True
-                logger.info(f"Incluindo o name space xmlns no evento {self.id}.")
-                ET.register_namespace(
-                    "", f"http://www.esocial.gov.br/schema/evt/{evento_codigo}/{self.versao}")
-                xml_obj.set(
-                    'xmlns', f"http://www.esocial.gov.br/schema/evt/{evento_codigo}/{self.versao}")
-                xml_str = ET.tostring(xml_obj).decode("utf-8")
-                self.evento_xml = xml_str
-                self.save()
-
-            if 'Id="ID' not in xml_str:
-                xml_changed = True
-                logger.info(f"Incluindo o ID no evento {self.id}.")
-                if not self.identidade:
-                    self.make_identidade()
-
-                evt_tag = EVENTO_COD[self.evento]['codigo']
-                # Primeiro tente sem namespace (caso o XML ainda não tenha xmlns)
-                elem = xml_obj.find(f'.//{evt_tag}')
-                # Se não encontrar, tente com wildcard para pegar qualquer namespace
-                if elem is None:
-                    elem = xml_obj.find(f'.//{{*}}{evt_tag}')
-
-                # Se ainda não achou, levante erro
-                if elem is None:
-                    raise ValueError(f"Elemento <{evt_tag}> não encontrado no XML.")
-
-                # Finalmente seta o Id
-                elem.set('Id', self.identidade)
-                xml_str = ET.tostring(xml_obj, encoding='utf-8').decode('utf-8')
-                self.evento_xml = xml_str
-                self.save()
-
-            if xml_changed:
-                xml_str = ET.tostring(xml_obj).decode("utf-8")
-            evento_xml = xml_str
-            Eventos.objects.filter(id=self.id).update(evento_xml=evento_xml)
-            save_file(self.xml_file(), evento_xml)
-            save_file(self.xml_file(timestamp), evento_xml)
-
-            if 'Signature' not in self.evento_xml:
-                logger.info(f"Assinando o evento {self.id}.")
-                self.assinar(request)
-
-        elif ((not self.evento_xml and self.evento_json
-              and self.origem == EVENTO_ORIGEM_API
-              and self.status == STATUS_EVENTO_IMPORTADO) or
-              (self.status == STATUS_EVENTO_CADASTRADO and self.is_editable())):
-            # Ele deverá criar um XML através do campo evento_json, se o evento estiver
-            # aberto para edição ou se ele vier da API com o campo evento_xml não preenchido
-            logger.info("XML criado a partir do campo evento_json")
-
-            def flatten_duplicate_tags(xml_str):
-                """
-                Recebe uma string XML e remove os contêineres redundantes.
-                Se um elemento contém filhos cuja tag é idêntica à dele,
-                os filhos são promovidos para o nível do contêiner.
-                """
-                root = ET.fromstring(xml_str)
-
-                def remove_redundant_containers(elem):
-                    # Processa recursivamente os filhos primeiro
-                    for child in list(elem):
-                        remove_redundant_containers(child)
-                    # Para cada filho, se ele for um contêiner redundante,
-                    # ou seja, se possuir ao menos um filho e TODOS os seus
-                    # filhos tiverem a mesma tag que ele, promove esses filhos.
-                    novos_filhos = []
-                    for child in list(elem):
-                        if len(child) > 0 and all(
-                                grandchild.tag == child.tag for grandchild in child):
-                            novos_filhos.extend(list(child))
-                        else:
-                            novos_filhos.append(child)
-                    elem[:] = novos_filhos
-
-                remove_redundant_containers(root)
-                return ET.tostring(root, encoding='unicode')
-
-            xml = dicttoxml.dicttoxml(
-                self.evento_json,
-                attr_type=False,
-                custom_root=wrapper,
-                item_func=lambda x: x).decode()
-
-            xml = flatten_duplicate_tags(xml)
-
-            # Incluindo XML no evento_json
-            ET.register_namespace(
-                "", f"http://www.esocial.gov.br/schema/evt/{evento_codigo}/{self.versao}")
-            xml_obj = ET.fromstring(xml)
-            xml_obj.set(
-                'xmlns', f"http://www.esocial.gov.br/schema/evt/{evento_codigo}/{self.versao}")
-
-            def recursive_update_datefield(
-                    elem2):
-                from dateutil import parser as dateutil_parser
-                for elem in elem2:
-                    if elem.text and len(elem.text) == 10 and len(elem.text.split('/')) == 3:
-                        data = dateutil_parser.parse(elem.text, dayfirst=True)
-                        elem.text = data.strftime('%Y-%m-%d')
-                    else:
-                        recursive_update_datefield(elem)
-
-            def recursive_remove(
-                    elem2):
-                for elem in elem2:
-                    if len(elem) == 0 and (elem.text is None or not elem.text.strip()):
-                        elem2.remove(elem)
-                    else:
-                        recursive_remove(elem)
-
-            def get_empty_tags():
-                empty_tags = []
-                for el in xml_obj.iter():
-                    if len(el) == 0 and (el.text is None or not el.text.strip()):
-                        empty_tags.append(el)
-                return empty_tags
-
-            while get_empty_tags():
-                for elem in xml_obj:
-                    recursive_update_datefield(elem)
-                    recursive_remove(elem)
-            if self.identidade:
-                xml_obj.find(  # type: ignore
-                    EVENTO_COD[self.evento]['codigo']).set('Id', self.identidade)
-
-            evento_xml = ET.tostring(xml_obj).decode('utf-8')
-            self.evento_xml = evento_xml
-            self.save()
-            Eventos.objects.filter(id=self.id).update(evento_xml=evento_xml)
-            save_file(self.xml_file(), evento_xml)
-            save_file(self.xml_file(timestamp), evento_xml)
-            xml_obj = self.assinar(request)
+    @staticmethod
+    def _build_validation_errors(
+            errors):
+        return [
+            {
+                'tipo': '1',
+                'codigo': '-',
+                'descricao': error.reason,
+                'localizacao': error.path,
+            }
+            for error in errors
+        ]
 
     def validar(
             self,
             request=None):
         from config.functions import validar_schema
+
         self.create_xml()
-        if VALIDAR_SCHEMA:
-            err = validar_schema(self.xsd_file(), self.xml_file())
-            err_list = []
-            if err:
-                for e in err:
-                    err_list.append(
-                        {
-                            'tipo': '1',
-                            'codigo': '-',
-                            'descricao': e.reason,
-                            'localizacao': e.path
-                        })
-                self.ocorrencias_json = err_list
-                self.is_aberto = False
-                self.status = STATUS_EVENTO_ERRO
-                self.lote = None
-                self.save()
-                if request:
-                    messages.error(request, 'Erro na validação do evento!')
-            else:
-                self.ocorrencias_json = None
-                self.is_aberto = False
-                self.status = STATUS_EVENTO_AGUARD_ENVIO
-                self.save()
-                if request:
-                    messages.success(request, 'Evento validado com sucesso!')
-        else:
-            self.ocorrencias_json = None
-            self.is_aberto = False
-            self.status = STATUS_EVENTO_AGUARD_ENVIO
-            self.save()
-            if request:
-                messages.success(request, 'Evento criado sem validação!')
+        if not VALIDAR_SCHEMA:
+            self._set_validation_state(None, STATUS_EVENTO_AGUARD_ENVIO, self.lote)
+            self._notify_validation_result(request, 'success', 'Evento criado sem validação!')
+            return
+
+        errors = validar_schema(self.xsd_file(), self.xml_file())
+        if errors:
+            self._set_validation_state(
+                self._build_validation_errors(errors),
+                STATUS_EVENTO_ERRO,
+                None,
+            )
+            self._notify_validation_result(request, 'error', 'Erro na validação do evento!')
+            return
+
+        self._set_validation_state(None, STATUS_EVENTO_AGUARD_ENVIO, self.lote)
+        self._notify_validation_result(request, 'success', 'Evento validado com sucesso!')
 
     def duplicar_evento(
             self,

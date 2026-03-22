@@ -33,7 +33,7 @@ class Certificados(BaseModelEsocial):
     fs_certificado = FileSystemStorage(location=os.path.join(settings.BASE_DIR, settings.CERT_PATH))
     certificado = models.FileField('Arquivo', storage=fs_certificado)
     senha_certificado = models.TextField(
-        "Senha do certificado criptografada", null=True, blank=True)
+        "Senha do certificado criptografada", blank=True)
     users: models.ManyToManyField = models.ManyToManyField(
         User, verbose_name='Usuários', related_name='esocial_crt_users', blank=True,
         help_text="Informe a lista de usuários que tem acesso a utilizar este certificado.")

@@ -146,6 +146,9 @@ arquivos/*
 lab/
 apps/contrib/management/commands/*
 
+notes.txt
+.scannerwork/
+
 # VsCode
 *.code-workspace
 

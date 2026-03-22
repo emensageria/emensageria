@@ -110,8 +110,6 @@ class LotesAdmin(AuditoriaAdminEventos):
         'recepcao_data_hora',
         'recepcao_versao_aplicativo',
         'protocolo',
-        # 'processamento_versao_aplicativo',
-        # 'tempo_estimado_conclusao',
         'data_hora_envio',
         'data_hora_consulta',
     )

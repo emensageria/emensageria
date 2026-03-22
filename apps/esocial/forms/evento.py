@@ -13,7 +13,21 @@ class EventosForm(forms.ModelForm):
 
     class Meta:
         model = Eventos
-        fields = '__all__'
+        fields = [
+            'versao',
+            'evento',
+            'operacao',
+            'identidade',
+            'tpinsc',
+            'nrinsc',
+            'tpamb',
+            'procemi',
+            'verproc',
+            'status',
+            'lote',
+            'certificado',
+            'evento_json',
+        ]
 
     def clean(
             self):
@@ -49,5 +63,5 @@ class EventosForm(forms.ModelForm):
             self.fields['operacao'].disabled = True
 
         if self.instance.pk and not self.instance.is_aberto:
-            for f in list(self.fields):
-                self.fields[f].disabled = True
+            for field_name in self.fields:
+                self.fields[field_name].disabled = True

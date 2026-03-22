@@ -100,7 +100,6 @@ STATUS_EVENTO_CADASTRADO = 0
 STATUS_EVENTO_ERRO = 1
 STATUS_EVENTO_AGUARD_ENVIO = 2
 STATUS_EVENTO_ENVIADO = 3
-# STATUS_EVENTO_ERRO = 4
 STATUS_EVENTO_PROCESSADO = 5
 STATUS_EVENTO_ENVIANDO = 6
 STATUS_EVENTO_CONSULTANDO = 7
@@ -296,11 +295,7 @@ EVENTOS = [
      'Decorrentes de Processo Trabalhista'),
     ('s3000', 'S-3000 - Exclusão de Eventos'),
     ('s3500', 'S-3500 - Exclusão de Eventos - Processo Trabalhista'),
-    # ('s5001', 'S-5001 - Informações das Contribuições Sociais por Trabalhador'),
-    # ('s5002', 'S-5002 - Imposto de Renda Retido na Fonte por Trabalhador'),
     ('s5003', 'S-5003 - Informações do FGTS por Trabalhador'),
-    # ('s5011', 'S-5011 - Informações das Contribuições Sociais Consolidadas por Contribuinte'),
-    # ('s5012', 'S-5012 - Imposto de Renda Retido na Fonte Consolidado por Contribuinte'),
     ('s5013', 'S-5013 - Informações do FGTS Consolidadas por Contribuinte'),
     ('s5501', 'S-5501 - Informações Consolidadas de Tributos Decorrentes de Processo Trabalhista'),
     ('s5503', 'S-5503 - Informações do FGTS por Trabalhador em Processo Trabalhista'),
@@ -377,9 +372,12 @@ SIM_NAO = [
     (SIM, 'Sim'),
 ]
 
+TIPO_INSCRICAO_CNPJ_LABEL = '1 - CNPJ'
+TIPO_INSCRICAO_CPF_LABEL = '2 - CPF'
+
 CHOICES_INSCRICOESTIPOS = [
-    (1, '1 - CNPJ'),
-    (2, '2 - CPF'),
+    (1, TIPO_INSCRICAO_CNPJ_LABEL),
+    (2, TIPO_INSCRICAO_CPF_LABEL),
     (3, '3 - CAEPF (Cadastro de Atividade Econômica de Pessoa Física)'),
     (4, '4 - CNO (Cadastro Nacional de Obra)'),
     (5, '5 - CGC'),
@@ -400,8 +398,8 @@ CHOICES_TPAMB = [
 ]
 
 TPINSC_TRANSMISSOR_EVENTOS = (
-    ('1', '1 - CNPJ'),
-    ('2', '2 - CPF'),
+    ('1', TIPO_INSCRICAO_CNPJ_LABEL),
+    ('2', TIPO_INSCRICAO_CPF_LABEL),
     ('3', '3 - CAEPF (Cadastro de Atividade Econômica de Pessoa Física)'),
     ('4', '4 - CNO (Cadastro Nacional de Obra)'),
 )
@@ -448,6 +446,6 @@ IMPORTACAO_STATUS = [
 ]
 
 TIPO_INSCRICAO = [
-    (1, '1 - CNPJ'),
-    (2, '2 - CPF'),
+    (1, TIPO_INSCRICAO_CNPJ_LABEL),
+    (2, TIPO_INSCRICAO_CPF_LABEL),
 ]
