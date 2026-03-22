@@ -36,7 +36,7 @@ def transform_to_list(
             if all(k.isdigit() for k in value.keys()):
                 # Converte o dicionário em uma lista de dicionários
                 result[key] = [
-                    {sub_key: sub_value for sub_key, sub_value in value[idx].items()}
+                    dict(value[idx].items())
                     for idx in sorted(value.keys(), key=int)
                 ]
             else:

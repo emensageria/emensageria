@@ -22,8 +22,7 @@ class EventosHistorico(BaseModelEsocial):
     identidade = models.CharField(
         'Identidade',
         max_length=36,
-        blank=True,
-        null=True, )
+        blank=True, )
     versao = models.CharField(
         'Versão',
         choices=VERSOES,
@@ -55,8 +54,7 @@ class EventosHistorico(BaseModelEsocial):
         'Processo de emissão do evento',
         choices=CHOICES_PROCEMI, null=True, default=1, )
     verproc = models.CharField(
-        'Versão do processo',
-        max_length=20, null=True, )
+        'Versão do processo', max_length=20, blank=True, )
     lote = models.ForeignKey(
         'Lotes',
         on_delete=models.SET_NULL,
@@ -75,10 +73,10 @@ class EventosHistorico(BaseModelEsocial):
         choices=SIM_NAO, blank=True, null=True, )
 
     validacoes = models.TextField(
-        'Validações', blank=True, null=True, )
+        'Validações', blank=True, )
 
     arquivo = models.CharField(
-        'Arquivo', max_length=200, blank=True, null=True, )
+        'Arquivo', max_length=200, blank=True, )
 
     retorno_envio_json = models.JSONField(
         'Retorno do envio', null=True, default=dict, blank=True)
@@ -89,7 +87,7 @@ class EventosHistorico(BaseModelEsocial):
     retorno_consulta_lote_json = models.JSONField(
         'Retorno do lote da consulta', null=True, default=dict, blank=True)
     evento_json = models.JSONField("JSON", null=True, default=dict, blank=True)
-    evento_xml = models.TextField("XML", null=True, blank=True)
+    evento_xml = models.TextField("XML", blank=True)
     ocorrencias_json = models.JSONField("Ocorrências", default=dict, null=True, blank=True)
     origem = models.IntegerField(
         'Origem do evento',

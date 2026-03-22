@@ -2,8 +2,16 @@
 from django import forms
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 
-# from apps.esocial.choices.eventos import EVENTOS
 from .models import User
+
+COMMON_LABELS = {
+    "username": "Nome do usuário",
+    "name": "Nome Completo",
+    "is_staff": "Acessa o sistema?",
+    "is_superuser": "É administrador?",
+    "is_active": "Está ativo?",
+    "groups": "Grupos",
+}
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -12,14 +20,7 @@ class CustomUserCreationForm(UserCreationForm):
         fields = (
             "username", "name", "is_staff", "is_superuser",
             "is_active", "groups", "eventos")
-        labels = {
-            "username": "Nome do usuário",
-            "name": "Nome Completo",
-            "is_staff": "Acessa o sistema?",
-            "is_superuser": "É administrador?",
-            "is_active": "Está ativo?",
-            "groups": "Grupos",
-        }
+        labels = COMMON_LABELS.copy()
 
 
 class CustomUserChangeForm(UserChangeForm):
@@ -30,14 +31,7 @@ class CustomUserChangeForm(UserChangeForm):
             "username", "name", "is_staff", "is_superuser",
             "is_active", "groups",
             "eventos")
-        labels = {
-            "username": "Nome do usuário",
-            "name": "Nome Completo",
-            "is_staff": "Acessa o sistema?",
-            "is_superuser": "É administrador?",
-            "is_active": "Está ativo?",
-            "groups": "Grupos",
-        }
+        labels = COMMON_LABELS.copy()
 
 
 # Form geral para CRUD customizado
@@ -49,11 +43,4 @@ class UserForm(forms.ModelForm):
             "username", "name", "is_staff", "is_superuser",
             "is_active", "groups",
             "eventos"]
-        labels = {
-            "username": "Nome do usuário",
-            "name": "Nome Completo",
-            "is_staff": "Acessa o sistema?",
-            "is_superuser": "É administrador?",
-            "is_active": "Está ativo?",
-            "groups": "Grupos",
-        }
+        labels = COMMON_LABELS.copy()

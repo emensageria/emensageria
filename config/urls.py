@@ -21,9 +21,11 @@ from django.urls import include, path
 from config import settings
 from .views import CustomAuthToken, Error500TestView, send_test_email, download_media
 
-admin.site.site_header = 'eMensageria OpenSource'
-admin.site.site_title = 'eMensageria OpenSource'
-admin.site.index_title = 'eMensageria OpenSource'
+ADMIN_SITE_TITLE = 'eMensageria OpenSource'
+
+admin.site.site_header = ADMIN_SITE_TITLE
+admin.site.site_title = ADMIN_SITE_TITLE
+admin.site.index_title = ADMIN_SITE_TITLE
 
 urlpatterns = [
     path('api-token-auth/', CustomAuthToken.as_view()),

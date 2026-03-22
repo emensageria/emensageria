@@ -59,8 +59,8 @@ class EventosSerializer(ModelSerializer):
         validated_data['status'] = STATUS_EVENTO_IMPORTADO
         validated_data['tpamb'] = ESOCIAL_TPAMB
         if validated_data.get('evento_xml') and not validated_data['evento_json']:
-            dict = xmltodict.parse(validated_data['evento_xml'])
-            cleaned_dict = remove_ns_prefixes(dict)
+            parsed_xml = xmltodict.parse(validated_data['evento_xml'])
+            cleaned_dict = remove_ns_prefixes(parsed_xml)
             validated_data['evento_json'] = cleaned_dict.get(
                 'eSocial') if cleaned_dict.get('eSocial') else cleaned_dict
         instance = super().create(validated_data)
@@ -80,8 +80,8 @@ class EventosSerializer(ModelSerializer):
         validated_data['retorno_envio_json'] = {}
         validated_data['retorno_consulta_json'] = {}
         if validated_data.get('evento_xml') and not validated_data['evento_json']:
-            dict = xmltodict.parse(validated_data['evento_xml'])
-            cleaned_dict = remove_ns_prefixes(dict)
+            parsed_xml = xmltodict.parse(validated_data['evento_xml'])
+            cleaned_dict = remove_ns_prefixes(parsed_xml)
             validated_data['evento_json'] = cleaned_dict.get(
                 'eSocial') if cleaned_dict.get('eSocial') else cleaned_dict
         instance = super().update(instance, validated_data)

@@ -35,7 +35,7 @@ class Command(BaseCommand):
             password = cert.get_senha_certificado()
             if password is not None:
                 password = password.encode('utf-8')
-            private_key, certificate, additional_certs = pkcs12.load_key_and_certificates(
+            _private_key, certificate, _additional_certs = pkcs12.load_key_and_certificates(
                 pkcs12_data,
                 password=password,
                 backend=default_backend()

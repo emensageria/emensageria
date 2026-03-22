@@ -1,14 +1,8 @@
-⚠️ Este repositório está arquivado e não é mais mantido.
-Código disponível apenas para consulta.
-Para maiores informações acesse www.emensageria.com.br
-
----
-
 # eMensageria OpenSource
 
 eMensageria - Sistema de Mensageria do eSocial <www.emensageria.com.br>
 
-**ATENÇÃO: O eMensageria opensource contém apenas os eventos iniciais do eSocial.**
+**ATENÇÃO: O eMensageria opensource contém apenas arquivos para a edição de eventos iniciais do eSocial.**
 
 ## Versões eMensageria
 
@@ -73,6 +67,10 @@ cp config/.env_example config/.env
 nano config/.env
 ```
 - Altere as variáveis de acordo com seu ambiente: veja o arquivo no endereço https://github.com/marcelomdevasconcellos/emensageria/blob/main/config/.env_example
+- Para rodar a análise do SonarQube usando o token salvo em `config/.env`, configure `SONAR_TOKEN` e execute:
+```
+./run_sonar.sh
+```
 - Crie as tabelas no banco de dados
 ```
 python manage.py migrate

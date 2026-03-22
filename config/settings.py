@@ -14,6 +14,7 @@ import os
 import sys
 
 import environ  # type: ignore
+from django.core.management.utils import get_random_secret_key
 from django.utils.log import DEFAULT_LOGGING as LOGGING
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -30,7 +31,7 @@ environ.Env.read_env()
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY', default='2w0qr9j#u2e=q081@sk)^-t3g9p5+k0+k9-b=yx4*aw!j=dsm$')
+SECRET_KEY = env('SECRET_KEY', default=get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool('DEBUG', default=False)
@@ -52,7 +53,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
-    'apps.esocial.apps.esocialConfig',
+    'apps.esocial.apps.EsocialConfig',
     'apps.users.apps.UsersConfig',
 ]
 
@@ -165,15 +166,16 @@ VERSOES_ESOCIAL = [
     'v_S_01_03_00', ]
 
 # Configurações para o envio de emails
+DEFAULT_ADMIN_EMAIL = 'admin@endereco.com.br'
 EMAIL_SUBJECT_PREFIX = env('EMAIL_SUBJECT_PREFIX', default="[eMensageriaOpenSource] ")
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = env('EMAIL_HOST', default='smtp.endereco.com.br')
 EMAIL_PORT = env('EMAIL_PORT', default=587)
-EMAIL_HOST_USER = env('SERVER_EMAIL', default='admin@endereco.com.br')
+EMAIL_HOST_USER = env('SERVER_EMAIL', default=DEFAULT_ADMIN_EMAIL)
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='12345')
-SERVER_EMAIL = env('SERVER_EMAIL', default='admin@endereco.com.br')
+SERVER_EMAIL = env('SERVER_EMAIL', default=DEFAULT_ADMIN_EMAIL)
 EMAIL_USE_TLS = env('EMAIL_USE_TLS', default=True)
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='admin@endereco.com.br')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default=DEFAULT_ADMIN_EMAIL)
 
 AUTH_USER_MODEL = "users.User"
 

@@ -33,7 +33,7 @@ class Transmissor(BaseModelEsocial):
         'Logotipo', upload_to="logotipo",
         blank=True, null=True)
     endereco_completo = models.TextField(
-        'Endereço', null=True, blank=True)
+        'Endereço', blank=True)
     tpinsc = models.IntegerField(
         'Tipo de inscrição do empregador', choices=TIPO_INSCRICAO, )
     nrinsc = models.CharField(
@@ -61,8 +61,8 @@ class Transmissor(BaseModelEsocial):
             force_update=False,
             using=None,
             update_fields=None):
-        self.transmissor_nrinsc = re.sub('[^0-9]', '', self.transmissor_nrinsc)
-        self.nrinsc = re.sub('[^0-9]', '', self.nrinsc)
+        self.transmissor_nrinsc = re.sub(r'\D', '', self.transmissor_nrinsc)
+        self.nrinsc = re.sub(r'\D', '', self.nrinsc)
         super(Transmissor, self).save(
             force_insert=False,
             force_update=False,

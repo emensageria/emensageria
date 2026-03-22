@@ -25,6 +25,42 @@ except Exception as e:
 register = template.Library()
 
 
+def _build_ocorrencia_item(ocorrencia):
+    return {
+        'tipo': ocorrencia.get('tipo'),
+        'codigo': ocorrencia.get('codigo'),
+        'descricao': ocorrencia.get('descricao'),
+        'localizacao': ocorrencia.get('localizacao'),
+    }
+
+
+def _normalize_ocorrencias(obj):
+    if isinstance(obj, list):
+        return [_build_ocorrencia_item(item.get('ocorrencia', {})) for item in obj]
+
+    if not isinstance(obj, dict):
+        raise ValueError(obj)
+
+    ocorrencias = obj.get('ocorrencias')
+    if isinstance(ocorrencias, dict):
+        ocorrencia = ocorrencias.get('ocorrencia')
+        if isinstance(ocorrencia, list):
+            return [_build_ocorrencia_item(item) for item in ocorrencia]
+        if isinstance(ocorrencia, dict):
+            return [_build_ocorrencia_item(ocorrencia)]
+
+    ocorrencia = obj.get('ocorrencia')
+    if isinstance(ocorrencia, dict):
+        return [_build_ocorrencia_item(ocorrencia)]
+    if isinstance(ocorrencia, list):
+        return [_build_ocorrencia_item(item) for item in ocorrencia]
+
+    if isinstance(ocorrencias, list):
+        return [_build_ocorrencia_item(item.get('ocorrencia', {})) for item in ocorrencias]
+
+    raise ValueError(obj)
+
+
 @register.filter('is_list')
 def is_list(
         value):
@@ -38,73 +74,25 @@ def finditem(
         obj,
         key):
     if isinstance(obj, dict):
-        if key in obj.keys():
+        if key in obj:
             return obj[key]
-        else:
-            for k, v in obj.items():
-                if isinstance(v, dict):
-                    item = finditem(v, key)
-                    if item is not None:
-                        return item
-    elif isinstance(obj, list):
-        for a in obj:
-            finditem(a, key)
+        for value in obj.values():
+            item = finditem(value, key)
+            if item is not None:
+                return item
+        return None
+
+    if isinstance(obj, list):
+        for item in obj:
+            finditem(item, key)
+    return None
 
 
 @register.filter('read_ocorrencias')
 def read_ocorrencias(
         string):
-    import json
-    lista = []
     obj = json.loads(string or '{}')
-    if isinstance(obj, list):
-        for o in obj:
-            lista.append(
-                {
-                    'tipo': o.get('ocorrencia', {}).get('tipo'),
-                    'codigo': o.get('ocorrencia', {}).get('codigo'),
-                    'descricao': o.get('ocorrencia', {}).get('descricao'),
-                    'localizacao': o.get('ocorrencia', {}).get('localizacao')
-                })
-    elif isinstance(obj, dict) and isinstance(obj.get('ocorrencias'), dict) and isinstance(
-            obj.get('ocorrencias', {}).get('ocorrencia'), list):
-        for o in obj.get('ocorrencias', {}).get('ocorrencia'):
-            lista.append(
-                {
-                    'tipo': o.get('tipo'),
-                    'codigo': o.get('codigo'),
-                    'descricao': o.get('descricao'),
-                    'localizacao': o.get('localizacao')
-                })
-    elif isinstance(obj, dict) and isinstance(obj.get('ocorrencia'), dict):
-        lista.append(
-            {
-                'tipo': obj.get('ocorrencia', {}).get('tipo'),
-                'codigo': obj.get('ocorrencia', {}).get('codigo'),
-                'descricao': obj.get('ocorrencia', {}).get('descricao'),
-                'localizacao': obj.get('ocorrencia', {}).get('localizacao')
-            })
-    elif isinstance(obj, dict) and isinstance(obj.get('ocorrencia'), list):
-        for o in obj.get('ocorrencia', []):
-            lista.append(
-                {
-                    'tipo': o.get('tipo'),
-                    'codigo': o.get('codigo'),
-                    'descricao': o.get('descricao'),
-                    'localizacao': o.get('localizacao')
-                })
-    elif isinstance(obj, dict) and isinstance(obj.get('ocorrencias'), list):
-        for o in obj.get('ocorrencias', []):
-            lista.append(
-                {
-                    'tipo': o.get('ocorrencia', {}).get('tipo'),
-                    'codigo': o.get('ocorrencia', {}).get('codigo'),
-                    'descricao': o.get('ocorrencia', {}).get('descricao'),
-                    'localizacao': o.get('ocorrencia', {}).get('localizacao')
-                })
-    else:
-        raise Exception(obj)
-    return lista
+    return _normalize_ocorrencias(obj)
 
 
 @register.filter('read_ocorrencias_lote')
@@ -135,8 +123,6 @@ def read_ocorrencias_lote(
 @register.filter('get_tipo_erro')
 def get_tipo_erro(
         string):
-    # 1 - Erro
-    # 2 - Advertência
     if int(string) == 1:
         return 'ERRO'
     else:
@@ -226,8 +212,8 @@ def render_with_model_dict(
     # usage example {{ var|render_with_dict:model }}
     #
     if var:
-        dict = model.__dict__
-        return var % dict
+        model_dict = model.__dict__
+        return var % model_dict
     else:
         return ''
 
@@ -417,15 +403,18 @@ def json_print(
     return json_str
 
 
-def DV_maker(
+def dv_maker(
         v):
     if v >= 2:
         return 11 - v
     return 0
 
 
+DV_maker = dv_maker
+
+
 @register.filter(name='validate_CPF')
-def validate_CPF(
+def validate_cpf(
         value):
     """
     Value can be either a string in the format XXX.XXX.XXX-XX or an
@@ -447,16 +436,19 @@ def validate_CPF(
     new_1dv = sum(
         [i * int(value[idx])
          for idx, i in enumerate(range(10, 1, -1))])
-    new_1dv = DV_maker(new_1dv % 11)
+    new_1dv = dv_maker(new_1dv % 11)
     value = value[:-2] + str(new_1dv) + value[-1]
     new_2dv = sum(
         [i * int(value[idx])
          for idx, i in enumerate(range(11, 1, -1))])
-    new_2dv = DV_maker(new_2dv % 11)
+    new_2dv = dv_maker(new_2dv % 11)
     value = value[:-1] + str(new_2dv)
     if value[-2:] != orig_dv:
         return False
     return True
+
+
+validate_CPF = validate_cpf
 
 
 @register.filter('addstr')
@@ -547,16 +539,16 @@ def addcss_select2(
     return value.as_widget(attrs={'class': arg, 'style': 'width: 100%'})
 
 
-# register = Library()
-
-
 @register.filter(name='notNone')
-def notNone(
+def not_none(
         var):
     a = ''
     if var:
         a = var
     return a
+
+
+notNone = not_none
 
 
 @register.filter(name='mes_ano')

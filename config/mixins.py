@@ -12,6 +12,7 @@ from rest_framework.serializers import ModelSerializer
 from config.settings import FILTER_BY_USER, LIST_MAX_SHOW_ALL, LIST_PER_PAGE
 
 AUTH_USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
+AUTH_VIEW_USER_PERMISSION = 'auth.view_user'
 
 
 class BaseModelSerializer(ModelSerializer):
@@ -86,12 +87,12 @@ class AuditoriaManager(models.Manager):
             return super().get_queryset()
         elif self.model.__name__ not in ('Certificados', 'Transmissor'):
             if current_user and not current_user.has_perm(
-                    'auth.view_user') and FILTER_BY_USER:
+                    AUTH_VIEW_USER_PERMISSION) and FILTER_BY_USER:
                 return super().get_queryset().filter(created_by=current_user)
             return super().get_queryset()
         else:
             if current_user and not current_user.has_perm(
-                    'auth.view_user') and FILTER_BY_USER:
+                    AUTH_VIEW_USER_PERMISSION) and FILTER_BY_USER:
                 return super().get_queryset().filter(
                     Q(created_by=current_user) | Q(users__id=current_user.id))
             return super().get_queryset()
@@ -108,7 +109,7 @@ class AuditoriaAdminEventos(admin.ModelAdmin):
             obj=None):
         current_user = get_current_user()
         if current_user and not current_user.has_perm(
-                'auth.view_user') and FILTER_BY_USER and \
+                AUTH_VIEW_USER_PERMISSION) and FILTER_BY_USER and \
                 obj and obj.created_by != current_user:
             return False
         return super().has_view_permission(request)
@@ -119,7 +120,7 @@ class AuditoriaAdminEventos(admin.ModelAdmin):
         from django.db.models import Q
         current_user = get_current_user()
         queryset = super().get_queryset(request)
-        if current_user and not current_user.has_perm('auth.view_user') and FILTER_BY_USER:
+        if current_user and not current_user.has_perm(AUTH_VIEW_USER_PERMISSION) and FILTER_BY_USER:
             if self.model.__name__ in ('Certificados', 'Transmissor'):
                 return queryset.filter(Q(created_by=current_user) | Q(users__id=current_user.id))
             else:
@@ -138,7 +139,7 @@ class AuditoriaAdminEventos(admin.ModelAdmin):
             request,
             obj=None):
         if self.model.__name__ in ('Certificados', 'Transmissor'):
-            if request.user.has_perm('auth.view_user'):
+            if request.user.has_perm(AUTH_VIEW_USER_PERMISSION):
                 return super(AuditoriaAdminEventos, self).get_readonly_fields(request, obj)
             else:
                 return self.readonly_fields + ('users',)

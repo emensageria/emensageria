@@ -9,7 +9,17 @@ from config.settings import FILTER_BY_USER
 class TransmissorForm(forms.ModelForm):
     class Meta:
         model = Transmissor
-        fields = '__all__'
+        fields = [
+            'transmissor_tpinsc',
+            'transmissor_nrinsc',
+            'nome_empresa',
+            'logotipo',
+            'endereco_completo',
+            'tpinsc',
+            'nrinsc',
+            'certificado',
+            'users',
+        ]
 
     def clean(self):
         cleaned_data = super().clean() or {}

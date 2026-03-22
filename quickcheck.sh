@@ -25,7 +25,9 @@ source venv/bin/activate
 flake8 --max-line=100 --select=E,F,W,C --ignore=W503,W504,E731 apps adminlteui_custom config
 #mypy --install-types
 #mypy apps *.py
-coverage run manage.py test
+coverage erase
+coverage run --rcfile=.coveragerc manage.py test
 coverage report -m
+coverage xml -i -o coverage.xml
 python -m pip_audit || true
 deactivate
