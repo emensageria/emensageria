@@ -1,0 +1,80 @@
+name: Test Coverage
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Run Tests With Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            testing_requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r testing_requirements.txt
+
+      - name: Run Django test suite with coverage
+        run: |
+          coverage erase
+          coverage run --rcfile=.coveragerc manage.py test
+          coverage report -m | tee coverage-report.txt
+          coverage xml -i -o coverage.xml
+          coverage json -o coverage.json
+
+      - name: Capture coverage percentage
+        id: coverage
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          coverage_data = json.loads(Path("coverage.json").read_text())
+          totals = coverage_data["totals"]
+          percentage = totals.get("percent_covered_display") or f'{totals["percent_covered"]:.2f}'
+
+          github_output = Path(os.environ["GITHUB_OUTPUT"])
+          with github_output.open("a", encoding="utf-8") as fh:
+              fh.write(f"percentage={percentage}\n")
+          PY
+
+      - name: Publish workflow summary
+        run: |
+          {
+            echo "## Test Coverage"
+            echo
+            echo "- Coverage: **${{ steps.coverage.outputs.percentage }}%**"
+            echo "- Command: \`coverage run --rcfile=.coveragerc manage.py test\`"
+            echo
+            echo "### Coverage report"
+            echo
+            echo '```text'
+            cat coverage-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-artifacts
+          path: |
+            coverage.xml
+            coverage.json
+            coverage-report.txt

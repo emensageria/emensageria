@@ -1,6 +1,7 @@
 import importlib
 import os
 import sys
+import tempfile
 
 from django.test import SimpleTestCase
 
@@ -39,6 +40,17 @@ class SettingsModuleTests(SimpleTestCase):
             reloaded = importlib.reload(settings_module)
 
         self.assertEqual(reloaded.ESOCIAL_TARGET, "production")
+
+    def test_reload_settings_respects_files_path_env(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            files_path = os.path.join(tmpdir, "arquivos")
+            with self.settings_reload_context(
+                ["manage.py", "runserver"],
+                {"ESOCIAL_TPAMB": "2", "FILES_PATH": files_path},
+            ):
+                reloaded = importlib.reload(settings_module)
+
+            self.assertEqual(reloaded.FILES_PATH, files_path)
 
 
 class _ReloadContext:

@@ -1,43 +1,134 @@
-version: "0.0"
+x-app-env: &app-env
+  DATABASE_URL: postgres://postgres:postgres@bd:5432/emensageria
+  DEBUG: "True"
+  SECRET_KEY: 2w0qr9j#u2e=q081@sk)^-t3g9p5+k0+k9-b=yx4*aw!j=dsm$
+  ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+  ADMINS: Administrador,admin@endereco.com.br;
+  EMAIL_HOST: smtp.endereco.com.br
+  EMAIL_HOST_USER: contato@endereco.com.br
+  EMAIL_HOST_PASSWORD: senha_email
+  EMAIL_PORT: "587"
+  EMAIL_USE_TLS: "True"
+  EMAIL_SUBJECT_PREFIX: "[eMensageriaOpenSource] "
+  DEFAULT_FROM_EMAIL: admin@endereco.com.br
+  SERVER_EMAIL: marcelomdevasconcellos@gmail.com
+  EMAIL_RECUPERACAO_SENHA: emensageria@emensageria.com.br
+  EMAIL_RECUPERACAO_SENHA_ASSUNTO: "Criação/Recuperação de senha | eMensageria"
+  EMAIL_RECUPERACAO_SENHA_MENSAGEM: >-
+    <p>Prezado %(nome)s,<br>Acesse o sistema pelo link
+    <a href="%(endereco)s">eMensageriaOpenSource</a><br>Utilizando
+    o usuário: <strong>%(usuario)s</strong><br>Senha:
+    <strong>%(senha)s</strong><br>E-mail gerado
+    automaticamente pelo sistema eMensageria</p>
+  LINK_WEBSITE: http://localhost:8000/
+  STATIC_ROOT: /static/
+  STATIC_URL: /static/
+  MEDIA_ROOT: /media/
+  MEDIA_URL: /media/
+  FILES_PATH: /arquivos/
+  CERT_PATH: /certificados/
+  CURL_PATH: ""
+  CRYPTO_KEY: 9hHO4321ekwv7e_yRtnp7c5CJH744rznT8Xe_ocLEmw=
+  CSRF_TRUSTED_ORIGINS: http://localhost:8000
+  CSRF_COOKIE_SECURE: "False"
+  VALIDAR_SCHEMA: "True"
+  FILTER_BY_USER: "False"
+  LOGO_IMAGE_IN_LOGIN: "False"
+  LOGO_IMAGE: ""
+  REPRESENTANTE_NOME: EMENSAGERIA
+  REPRESENTANTE_CENTRAL_SERVICOS: "Central de Serviços (99) 99999.9999"
+  SYSTEM_MANUAL_SHOW_IN_MENU: "False"
+  SYSTEM_MANUAL_LINK: "#"
+  SYSTEM_TOKEN_SCHEDULE: 9944b09199c62bcf9418ad846dd0123e4bbdfc6ee4b
+  SUPERUSER_USERNAME: admin
+  SUPERUSER_PASSWORD: admin
+  SUPERUSER_EMAIL: admin@localhost
+  VERSAO_LAYOUT_ESOCIAL: v_S_01_03_00
+  ESOCIAL_TPAMB: "2"
+  ESOCIAL_PROCEMI: "1"
+  ESOCIAL_VALIDATE_RUN_EVERY_MINS: "10"
+  ESOCIAL_SEND_RUN_EVERY_MINS: "10"
+  ESOCIAL_CONSULT_RUN_EVERY_MINS: "10"
+  ESOCIAL_LOTE_MIN: "1"
+  ESOCIAL_LOTE_MAX: "60"
+  ESOCIAL_TIMEOUT: "3600"
+  ESOCIAL_AUTOMATIC_FUNCTIONS_ENABLED: "False"
+  ESOCIAL_CA_CERT_PEM_FILE: certificado/webservicesproducaorestritaesocialgovbr.crt
+  ESOCIAL_TP_AMB: "Produção Restrita"
+  ESOCIAL_FORCE_PRODUCAO_RESTRITA: "True"
+  ESOCIAL_VERIFICAR_PREDECESSAO_ANTES_ENVIO: "False"
+  IMPORT_FILES_RUN_EVERY_MINS: "10"
+  IMPORT_LEN_EVENTS: "10"
+  IMPORT_AUTOMATIC_FUNCTIONS_ENABLED: "False"
+  EFDREINF_VALIDADE_RUN_EVERY_MINS: "10"
+  EFDREINF_SEND_RUN_EVERY_MINS: "10"
+  EFDREINF_CONSULT_RUN_EVERY_MINS: "10"
+  EFDREINF_CA_CERT_PEM_FILE: certificados/acserproacfv5.crt
+  EFDREINF_LOTE_MIN: "1"
+  EFDREINF_LOTE_MAX: "60"
+  EFDREINF_TIMEOUT: "3600"
+  EFDREINF_AUTOMATIC_FUNCTIONS_ENABLED: "False"
+  EFDREINF_TP_AMB: "Produção Restrita"
+  EFDREINF_FORCE_PRODUCAO_RESTRITA: "True"
+  EFDREINF_VERIFICAR_PREDECESSAO_ANTES_ENVIO: "False"
+  EMPREGADOR_ITEST: "34686613"
+  TRANSMISSOR_ITEST: "34686613000146"
+  CERT_NAME_ITEST: ITEST
+  CERT_FILE_ITEST: cert.pfx
+  CERT_PASS_ITEST: "123456"
+  GUNICORN_WORKERS: "3"
+
+x-app-volumes: &app-volumes
+  - .:/app
+  - staticstore:/static
+  - mediastore:/media
+  - filesstore:/arquivos
+  - certstore:/certificados
 
 volumes:
-  filesstore:
   certstore:
-  staticstore:
+  filesstore:
   mediastore:
-  logstore:
+  pgdata:
+  staticstore:
 
 services:
-
-  db:
-    image: postgres
-    volumes:
-      - ./data/db:/var/lib/postgresql/data
+  bd:
+    image: postgres:17
     environment:
-      - POSTGRES_DB=emensageria
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      POSTGRES_DB: emensageria
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d emensageria"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  app:
+  web:
     build:
       context: .
       dockerfile: Dockerfile
-    command: python3 manage.py runserver 0.0.0.0:8000
+    command: ["/usr/local/bin/web-entrypoint.sh"]
+    depends_on:
+      bd:
+        condition: service_healthy
+    environment: *app-env
     ports:
       - "8000:8000"
-    volumes:
-      - filesstore:/arquivos
-      - certstore:/certificados
-      - staticstore:/static
-      - mediastore:/media
-      - logstore:/log
-    environment:
-      - POSTGRES_NAME=postgres
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+    volumes: *app-volumes
+
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["/usr/local/bin/cron-entrypoint.sh"]
     depends_on:
-      - db
-
-
+      bd:
+        condition: service_healthy
+    environment: *app-env
+    volumes: *app-volumes

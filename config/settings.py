@@ -250,8 +250,8 @@ SYSTEM_MANUAL_LINK = env('SYSTEM_MANUAL_LINK', default='#')
 # Caminho relativo do local aonde serão armazenados os arquivos.
 # Insira "/" no início para definir diretórios absolutos.
 FILES_PATH = env(
-    'MEDIA_ROOT',
-    default=os.path.join(env("MEDIA_ROOT", default="media/"), 'arquivos'))
+    'FILES_PATH',
+    default=os.path.join(MEDIA_ROOT, 'arquivos'))
 os.makedirs(os.path.join(FILES_PATH), exist_ok=True)  # Cria o diretório de logs, caso não exista
 
 os.makedirs(os.path.join(FILES_PATH, "comunicacao", "WsConsultarLoteEventos"), exist_ok=True)
@@ -399,6 +399,10 @@ EMAIL_RECUPERACAO_SENHA_MENSAGEM = env(
             'automaticamente pelo sistema eMensageria</p>')
 
 CRYPTO_KEY = env('CRYPTO_KEY', default='9hHO4321ekwv7e_yRtnp7c5CJH744rznT8Xe_ocLEmw=')
+
+SUPERUSER_USERNAME = env('SUPERUSER_USERNAME', default='admin')
+SUPERUSER_PASSWORD = env('SUPERUSER_PASSWORD', default='admin')
+SUPERUSER_EMAIL = env('SUPERUSER_EMAIL', default='')
 
 CSRF_TRUSTED_ORIGINS = [
     env('CSRF_TRUSTED_ORIGINS', default="http://localhost:8000"),

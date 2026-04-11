@@ -1,255 +1,170 @@
 # eMensageria OpenSource
 
-eMensageria - Sistema de Mensageria do eSocial <www.emensageria.com.br>
+Sistema open source para mensageria do eSocial, com foco em operação local simples via Docker, persistência de arquivos e automação periódica de envio e consulta.
 
-**ATENÇÃO: O eMensageria opensource contém apenas arquivos para a edição de eventos iniciais do eSocial.**
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Django 4.2](https://img.shields.io/badge/Django-4.2-092E20?logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+[![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=emensageria_emensageria&metric=alert_status)](https://sonarcloud.io/summary/overall?id=emensageria_emensageria&branch=main)
+[![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=emensageria_emensageria&metric=coverage)](https://sonarcloud.io/summary/overall?id=emensageria_emensageria&branch=main)
 
-## Versões eMensageria
+> Ambiente descrito neste README: uso local e desenvolvimento. As credenciais padrão `admin/admin` existem apenas para facilitar o bootstrap inicial.
 
-- 1.0 (eSocial versão S-1.0 - Leiautes (cons. até NT 01/2021))
-- 1.1 (eSocial versão S-1.0 - Leiautes (cons. até NT 02/2021))
-- 1.2 (eSocial versão S-1.0 - Leiautes (cons. até NT 03/2021))
-- 1.3 (eSocial versão S-1.0 - Leiautes (cons. até NT 04/2021))
-- 1.4 (eSocial versão S-1.0 - Leiautes (cons. até NT 05/2022))
-- 1.5 (eSocial S-1.0 (até NT 06/2022) e S-1.1 (Beta - 28/07/2022))
-- 1.6 (eSocial S-1.0 (até NT 06/2022), S-1.1 (até NT 02/2023) e S-1.2)
-- 1.7 (eSocial S-1.0 (até NT 06/2022), S-1.1 (até NT 02/2023) e S-1.2 (até NT 02/2024))
-- 1.8 (eSocial S-1.0, S-1.1, S-1.2, e S-1.3)
+## Visão Geral
 
-## Versões compatíveis do eSocial
+- Stack local com apenas `web`, `cron` e `bd`.
+- Bootstrap automático na primeira subida:
+  - `migrate`
+  - `collectstatic`
+  - `create_superuser_if_none`
+- Agendamento automático a cada 1 minuto no container `cron`:
+  - `python manage.py esocial_consultar`
+  - `python manage.py esocial_enviar`
+- Persistência de `static`, `media`, `arquivos`, `certificados` e banco PostgreSQL via volumes Docker.
 
-- S 1.0
-- S 1.1
-- S 1.2
-- S 1.3
+## Arquitetura Local
 
-## Requisitos de Sistema
-
-- Ubuntu 24.10 x64;
-- Python (versão 3.12.7);
-- Django (versão 4.2.17);
-- Postgres 16;
-- outros requisitos no arquivo requirements.txt
-- cURL
-  - Esta biblioteca é nativa do Linux/Mac, para quem instalar o sistema em servidor Windows é necessário instalar a biblioteca e configurar a variável CURL_PATH no arquivo 'config/.env'. Link da biblioteca para download: https://curl.se/download.html
-
-## Instalação em ambiente em ambiente de desenvolvimento
-PASSO-A-PASSO SIMPLIFICADO, EXIGE CONHECIMENTOS TÉCNICOS.
-
-- Crie o banco de dados em postgres:
+```mermaid
+graph LR
+    Client["Browser / API Client"] --> Web["web<br/>Django + Gunicorn"]
+    Web --> DB["bd<br/>PostgreSQL 17"]
+    Cron["cron<br/>1x por minuto"] --> DB
+    Web --- Static["/static"]
+    Web --- Media["/media"]
+    Web --- Files["/arquivos"]
+    Web --- Certs["/certificados"]
+    Cron --- Files
+    Cron --- Certs
 ```
-host: localhost
-name: emensageria
-user: postgres
-pass: postgres
-port: 5432
-```
-- Faça o clone do repositório
-```
+
+## Instalação via Docker
+
+### Pré-requisitos
+
+- Docker Engine ou Docker Desktop
+- Docker Compose Plugin (`docker compose`)
+
+### Subida rápida
+
+1. Clone o repositório e entre na pasta do projeto:
+
+```bash
 git clone https://github.com/marcelomdevasconcellos/emensageria.git
-```
-- Crie e ative a virtualenv
-```
-python3 -m venv venv_emensageria
-source venv_emensageria/bin/activate
-```
-- Acesse a pasta do repositório
-```
 cd emensageria
 ```
-- Instale os requirements
-```
-pip install -r requirements.txt
-```
-- Inclua e edite as variáveis
-```
-cp config/.env_example config/.env
-nano config/.env
-```
-- Altere as variáveis de acordo com seu ambiente: veja o arquivo no endereço https://github.com/marcelomdevasconcellos/emensageria/blob/main/config/.env_example
-- Para rodar a análise do SonarQube usando o token salvo em `config/.env`, configure `SONAR_TOKEN` e execute:
-```
-./run_sonar.sh
-```
-- Crie as tabelas no banco de dados
-```
-python manage.py migrate
-```
-- Crie do super usuário
-```
-python manage.py createsuperuser
-```
-- Acesse o sistema
-```
-http://localhost:8000/
+
+2. Construa as imagens e suba os serviços:
+
+```bash
+docker compose up --build -d
 ```
 
-O resto é configurações pelo sistema. Siga a sequência:
+3. Aguarde o primeiro bootstrap terminar. Na primeira execução o container `web`:
 
-1. Certificado
-2. Transmissor
-3. Eventos ...
-
-## How to generate docker images and deploy locally
-
-We will show you how to generate docker images and deploy the docker container locally. 
-
-To build the application and generate docker images you have to execute the command bellow. Execute from root folder (/log).
-
-```
-docker-compose build
+```text
+- aplica migrations
+- coleta arquivos estáticos
+- cria o superusuário padrão
+- inicia o Gunicorn
 ```
 
-To deploy the application locally, you have to have execute following command:
+4. Acesse a aplicação:
 
-```
-docker-compose up -d
-```
-
-*Tip: if you are in Windows, open a Powershell prompt to run Docker. Do not run inside VS Code prompt because it does not manage memory very well.*
-
-It will set up the docker container from docker image and create the volumes to store application database and data files.
-
-After, we install static artifacts in application. For this, execute:
-
-```
-docker-compose exec app python3 manage.py collectstatic --noinput
+```text
+URL:   http://localhost:8000/
+Login: admin
+Senha: admin
 ```
 
-Usually we use the user *admin* and the password as well *admin* in development environment, for tests purposes only. The email field we let empty.
-*Please, do not use this in production.*
+## Serviços
 
-```
-docker-compose exec app python3 manage.py createsuperuser
-```
+| Serviço | Função | Porta |
+| --- | --- | --- |
+| `web` | Django + Gunicorn | `8000` |
+| `cron` | Execução agendada dos comandos eSocial | sem exposição externa |
+| `bd` | PostgreSQL | `5432` |
 
-After, we create the database:
+## Comandos Úteis
 
-```
-docker-compose exec app psql -U postgres -h db -c 'CREATE DATABASE emensageria;'
-```
+### Subir ou atualizar a stack
 
-After, we apply the database structure:
-
-```
-docker-compose exec app python3 manage.py migrate
+```bash
+docker compose up --build -d
 ```
 
-## APIs
+### Ver logs da aplicação e do agendador
 
-#### Atenção: O apache deverá estar configurado para passar o headers para o Django, para isso inclua a configuração abaixo no servidor de produção.
-
-```
-WSGIPassAuthorization On
+```bash
+docker compose logs -f web cron
 ```
 
-#### Gerar token via GET:
-- URL: http://localhost:8000/api-token-auth/
-- Exemplo CURL (gerando token via requisição GET):
-```
-curl --data "username=admin&password=admin"
-http://localhost:8000/api-token-auth/?format=json
+### Abrir shell no container web
+
+```bash
+docker compose exec web sh
 ```
 
-- Exemplo CURL (gerando token via requisição REST):
-```
-curl -d '{"username":"admin", "password":"admin"}' -H "Content-Type:
-application/json" -X POST http://localhost:8000/api-token-auth/?format=json
+### Executar comando Django manualmente
+
+```bash
+docker compose exec web python manage.py esocial_consultar
+docker compose exec web python manage.py esocial_enviar
 ```
 
-#### Consulta de eventos
-- URL: http://localhost:8000/esocial/api/eventos/
-- Metódos: 'get', 'put', 'patch', 'post', 'head'
-- Exemplo CURL:
-```
-curl -X GET http://localhost:8000/esocial/api/eventos/?format=json -H
-'Authorization: Token <token>'
-```
-- Filtros:
-```
-http://localhost:8000/esocial/api/eventos/?format=json&user_id=1&identidade=ID1346866130001462021062221014900001
+### Parar a stack
+
+```bash
+docker compose down
 ```
 
-#### Executando funções nos eventos individualmente ou consultando e alterando
-- URL: http://localhost:8000/esocial/api/eventos/<evento_id>/
-- Exemplo CURL:
-```
-curl -X GET http://localhost:8000/esocial/api/eventos/1/?format=json -H
-'Authorization: Token <token>'
-```
-- Funções:
-```
-http://localhost:8000/esocial/api/eventos/<evento_id>/atualizar-identidade/?format=json
-http://localhost:8000/esocial/api/eventos/<evento_id>/abrir-evento-para-edicao/?format=json
-http://localhost:8000/esocial/api/eventos/<evento_id>/validar/?format=json
-http://localhost:8000/esocial/api/eventos/<evento_id>/enviar/?format=json
-http://localhost:8000/esocial/api/eventos/<evento_id>/consultar/?format=json
+### Parar a stack e remover volumes
+
+```bash
+docker compose down -v
 ```
 
-#### Validando eventos em lote
-- URL: http://localhost:8000/esocial/validar-eventos/
-- Exemplo CURL:
-```
-curl -X GET http://localhost:8000/esocial/validar-eventos/ -H
-'Authorization: Token <token>'
-```
+## Persistência de Dados
 
-#### Enviando eventos para o eSocial em lote
-- Inclua esta chamada em uma CRON para que possa ser realizada periodicamente
-- URL: http://localhost:8000/esocial/enviar-transmissores/
-- Exemplo CURL:
-```
-curl -X GET http://localhost:8000/esocial/enviar-transmissores/ -H 'Authorization:
-Token <token>'
-```
-- Exemplo em linha de comando:
-```
-python manage.py esocial_enviar
-```
+- `static`: preenchido por `collectstatic` e servido pela aplicação.
+- `media`: armazenado em volume persistente e servido pela rota autenticada `/media/<path>`.
+- `arquivos`: diretório operacional do sistema para comunicação e artefatos.
+- `certificados`: armazenamento persistente para certificados.
+- `pgdata`: persistência do banco PostgreSQL.
 
+## Acessos Técnicos
 
-#### Consultando eventos no eSocial em lote
-- Inclua esta chamada em uma CRON para que possa ser realizada periodicamente
-- URL: http://localhost:8000/esocial/consultar-transmissores/
-- Exemplo CURL:
-```
-curl -X GET http://localhost:8000/esocial/consultar-transmissores/ -H
-'Authorization: Token <token>'
-```
-- Exemplo em linha de comando:
-```
-python manage.py esocial_consultar
+| Recurso | Endereço |
+| --- | --- |
+| Aplicação | [http://localhost:8000/](http://localhost:8000/) |
+| API token | [http://localhost:8000/api-token-auth/](http://localhost:8000/api-token-auth/) |
+| SonarCloud | [Dashboard do projeto](https://sonarcloud.io/summary/overall?id=emensageria_emensageria&branch=main) |
+
+## Qualidade, Testes e Cobertura
+
+- O workflow [`test-coverage.yml`](.github/workflows/test-coverage.yml) executa a suíte com cobertura em cada `push` e `pull_request`.
+- O percentual é extraído automaticamente do `coverage.json`, publicado no resumo do job e anexado como artefato junto com `coverage.xml`.
+- A qualidade estática e a cobertura do branch `main` são acompanhadas em tempo real no SonarCloud.
+- O badge de cobertura no topo deste README sempre reflete o valor atual do projeto no dashboard oficial.
+- Para este repositório, o objetivo recomendado para novas mudanças é manter cobertura máxima possível, idealmente `100%` nos cenários adicionados ou alterados.
+- O dashboard oficial pode ser acessado em:
+
+```text
+https://sonarcloud.io/summary/overall?id=emensageria_emensageria&branch=main
 ```
 
-## Formato do JSON de importação via API
+## Observações Operacionais
 
-Para identificação do formato do JSON para importação siga os seguintes passos:
+- O ambiente Docker local já sobe com variáveis padrão suficientes para uso imediato.
+- O `cron` não precisa de configuração manual adicional para iniciar os comandos periódicos.
+- O usuário padrão `admin/admin` é criado somente se ainda não existir superusuário.
+- Este setup é voltado para desenvolvimento local. Para produção, revise credenciais, hosts permitidos, TLS, certificados e política de segredos.
 
-1. Acessar o FrontEnd utilizando o usuário admin;
-2. Criar um evento no leiaute que desejar e salvar o evento;
-3. Visualizar a edição do evento;
-4. O formato do JSON irá aparecer em um campo somente leitura no formulario chamado JSON. 
+## Licença
 
-## Licença AGPL-3
+Distribuído sob a licença `AGPL-3.0`. Veja [LICENSE](LICENSE) para detalhes.
 
-eMensageria - Sistema de Mensageria Opensource do eSocial
-Copyright (C) 2021  Marcelo Medeiros de Vasconcellos
+## Referências
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-## Contato
-
-Marcelo Medeiros de Vasconcellos <marcelomdevasconcellos@gmail.com>
-
-Para maiores informações acesse: www.emensageria.com.br
+- Site oficial: [www.emensageria.com.br](https://www.emensageria.com.br/)
+- SonarCloud: [emensageria_emensageria / main](https://sonarcloud.io/summary/overall?id=emensageria_emensageria&branch=main)
