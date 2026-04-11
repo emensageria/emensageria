@@ -1,11 +1,12 @@
-Django==4.2.29
+Django==4.2.30
 jinja2==3.1.6
 django-currentuser
 django-environ
 django-adminlte-ui==2.1.1
 django-multiselectfield==0.1.13
-cryptography==46.0.5
+cryptography==46.0.7
 pyOpenSSL>=25.0.0
+pygments==2.20.0
 django-localflavor
 django-picklefield
 django-reversion==5.1.0
@@ -32,7 +33,7 @@ django-cors-headers
 reportlab
 django-allauth==65.14.1
 whitenoise
-requests
+requests==2.33.0
 python-dateutil
 dicttoxml
 untangle
