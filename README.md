@@ -162,6 +162,12 @@ https://sonarcloud.io/summary/overall?id=emensageria_emensageria&branch=main
 - O usuário padrão `admin/admin` é criado somente se ainda não existir superusuário.
 - Este setup é voltado para desenvolvimento local. Para produção, revise credenciais, hosts permitidos, TLS, certificados e política de segredos.
 
+## Autor
+
+- Marcelo Medeiros de Vasconcellos
+- LinkedIn: [marcelomdevasconcellos](https://www.linkedin.com/in/marcelomdevasconcellos/)
+- E-mail: [adm@emensageria.com.br](mailto:adm@emensageria.com.br)
+
 ## Licença
 
 Distribuído sob a licença `AGPL-3.0`. Veja [LICENSE](LICENSE) para detalhes.
