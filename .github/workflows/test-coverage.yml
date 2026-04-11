@@ -6,15 +6,27 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   coverage:
     name: Run Tests With Coverage
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -62,6 +74,11 @@ jobs:
             echo
             echo "- Coverage: **${{ steps.coverage.outputs.percentage }}%**"
             echo "- Command: \`coverage run --rcfile=.coveragerc manage.py test\`"
+            if [ -n "${SONAR_TOKEN}" ]; then
+              echo "- SonarCloud: analysis enabled for this run"
+            else
+              echo "- SonarCloud: analysis skipped because \`SONAR_TOKEN\` is not configured"
+            fi
             echo
             echo "### Coverage report"
             echo
@@ -69,6 +86,16 @@ jobs:
             cat coverage-report.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: SonarCloud Scan
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+
+      - name: SonarCloud Scan skipped
+        if: ${{ env.SONAR_TOKEN == '' }}
+        run: echo "SONAR_TOKEN não configurado; análise SonarCloud ignorada."
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4

@@ -144,9 +144,11 @@ docker compose down -v
 
 - O workflow [`test-coverage.yml`](.github/workflows/test-coverage.yml) executa a suíte com cobertura em cada `push` e `pull_request`.
 - O percentual é extraído automaticamente do `coverage.json`, publicado no resumo do job e anexado como artefato junto com `coverage.xml`.
-- A qualidade estática e a cobertura do branch `main` são acompanhadas em tempo real no SonarCloud.
-- O badge de cobertura no topo deste README sempre reflete o valor atual do projeto no dashboard oficial.
+- O mesmo workflow envia a análise para o SonarCloud usando o secret `SONAR_TOKEN`.
+- O badge de cobertura no topo deste README passa a refletir o branch `main` somente depois que a análise do GitHub Actions concluir com sucesso no SonarCloud.
+- O projeto SonarCloud deve permanecer em modo de análise por CI. Se o autoscan estiver ativo, a métrica `coverage` não será publicada.
 - Para este repositório, o objetivo recomendado para novas mudanças é manter cobertura máxima possível, idealmente `100%` nos cenários adicionados ou alterados.
+- Configure o secret do repositório em `Settings > Secrets and variables > Actions > New repository secret` com o nome `SONAR_TOKEN`.
 - O dashboard oficial pode ser acessado em:
 
 ```text
