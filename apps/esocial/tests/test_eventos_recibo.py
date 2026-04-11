@@ -4,7 +4,12 @@ from unittest.mock import MagicMock, patch
 
 from django.test import RequestFactory, SimpleTestCase
 
-from apps.esocial.views.eventos_recibo import eventos_recibo, get_size_image, pdf_recibo_evento
+from apps.esocial.views.eventos_recibo import (
+    eventos_recibo,
+    generate_text_list,
+    get_size_image,
+    pdf_recibo_evento,
+)
 
 
 class _EventoFake:
@@ -39,6 +44,13 @@ class _EventoFake:
         return "CNPJ"
 
 
+class _TextoSemPalavras:
+
+    @staticmethod
+    def split(_separator):
+        return []
+
+
 class EventosReciboTests(SimpleTestCase):
 
     def setUp(self):
@@ -53,6 +65,10 @@ class EventosReciboTests(SimpleTestCase):
             width, height = get_size_image("/tmp/logo.png")
 
         self.assertEqual((width, height), (100, 50))
+
+    def test_generate_text_list_quebra_texto_e_cobre_branch_sem_palavras(self):
+        self.assertEqual(generate_text_list("uma frase curta", 10), ["uma frase", "curta"])
+        self.assertEqual(generate_text_list(_TextoSemPalavras(), 10), [])
 
     def test_pdf_recibo_evento_fluxo_recepcao_sem_consulta(self):
         transmissor = SimpleNamespace(

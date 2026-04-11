@@ -59,6 +59,19 @@ class EsocialCustomTagsTests(SimpleTestCase):
                 }
             }
         )
+        payload_dict_ocorrencias_dict = json.dumps(
+            {
+                "ocorrencias": {
+                    "ocorrencia": {"tipo": 1, "codigo": 2, "descricao": "d", "localizacao": "l"}
+                }
+            }
+        )
+        payload_dict_ocorrencias_fallback_top_level = json.dumps(
+            {
+                "ocorrencias": {"ocorrencia": "ignorar"},
+                "ocorrencia": {"tipo": 1, "codigo": 2, "descricao": "d", "localizacao": "l"},
+            }
+        )
         payload_dict_ocorrencia_dict = json.dumps(
             {"ocorrencia": {"tipo": 1, "codigo": 2, "descricao": "d", "localizacao": "l"}}
         )
@@ -75,11 +88,18 @@ class EsocialCustomTagsTests(SimpleTestCase):
 
         self.assertEqual(tags.read_ocorrencias(payload_list)[0]["tipo"], 1)
         self.assertEqual(tags.read_ocorrencias(payload_dict_ocorrencias_list)[0]["codigo"], 2)
+        self.assertEqual(tags.read_ocorrencias(payload_dict_ocorrencias_dict)[0]["codigo"], 2)
+        self.assertEqual(
+            tags.read_ocorrencias(payload_dict_ocorrencias_fallback_top_level)[0]["descricao"], "d"
+        )
         self.assertEqual(tags.read_ocorrencias(payload_dict_ocorrencia_dict)[0]["descricao"], "d")
         self.assertEqual(tags.read_ocorrencias(payload_dict_ocorrencia_list)[0]["localizacao"], "l")
         self.assertEqual(tags.read_ocorrencias(payload_dict_ocorrencias_plain_list)[0]["tipo"], 1)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
+            tags.read_ocorrencias(json.dumps("texto"))
+
+        with self.assertRaises(ValueError):
             tags.read_ocorrencias(json.dumps({"foo": "bar"}))
 
     def test_read_ocorrencias_lote(self):
