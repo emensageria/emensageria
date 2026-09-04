@@ -176,3 +176,6 @@ Distribuído sob a licença `AGPL-3.0`. Veja [LICENSE](LICENSE) para detalhes.
 
 - Site oficial: [www.emensageria.com.br](https://www.emensageria.com.br/)
 - SonarCloud: [emensageria_emensageria / main](https://sonarcloud.io/summary/overall?id=emensageria_emensageria&branch=main)
+
+
+<!-- Security scan triggered at 2026-09-04 13:02:18 -->
